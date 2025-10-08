@@ -1,0 +1,74 @@
+[tool.poetry]
+name = "meta-learning"
+version = "0.1.0"
+description = "Meta-learning project for algorithm selection in multi-objective optimization problems"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "components"}, {include = "utils"}]
+
+[tool.poetry.dependencies]
+# Atualizado para garantir compatibilidade com flake8 (>=3.8.1)
+python = "^3.11"
+pandas = "^2.0.0"
+numpy = "^1.24.0"
+scikit-learn = "^1.3.0"
+scipy = "^1.10.0"
+matplotlib = "^3.7.0"
+seaborn = "^0.12.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+black = "^23.0.0"
+flake8 = "^6.0.0"
+isort = "^5.12.0"
+mypy = "^1.5.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+pipeline = "pipeline:main"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+include_trailing_comma = true
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers --cov=components --cov=utils"
+testpaths = [
+    "tests",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
