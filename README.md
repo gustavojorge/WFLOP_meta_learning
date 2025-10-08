@@ -52,6 +52,52 @@ cd meta_learning
 poetry install
 ```
 
+## Required Data & Directory Layout
+
+Before running the pipeline you must have (at project root):
+
+```
+meta_learning/
+├── meta_dataset/        # REQUIRED. Final prepared datasets used directly for training/merit.
+├── meta_feature/        # Raw meta-feature extraction outputs (intermediate source)
+├── Analysis/            # Indicator values (outputs from the experimental suite)
+└── result/              # (Optional initially) Will be created / extended by the pipeline
+```
+
+### 1. `meta_dataset/` (Essential)
+Contains the processed CSVs consumed by `merit_table_builder.py` / `models_and_merit_builder.py`.
+Structure (per indicator):
+```
+meta_dataset/
+    epsilon/
+        pareto_based/
+            random_walk/*.csv
+            adaptive_walk/*.csv
+    hipervolume/
+        pareto_based/...
+    igd/
+        pareto_based/...
+```
+
+### 2. `meta_feature/` (Raw Layer)
+Raw meta-feature files (per instance / problem). These are NOT directly used in the pipeline steps, but are the source for building `meta_dataset/`.
+
+### 3. `Analysis/`
+Contains the original quality indicator measurements (epsilon, hypervolume, IGD, etc.) produced by your test suite. Together with `meta_feature/` they allow reconstruction of the processed datasets.
+
+### 4. `result/`
+Holds all generated artifacts after running the pipeline (it will be created if absent). If you already have a previous run, you can keep it for comparison. The pipeline writes inside `result/<label>/...`.
+
+### Building the processed datasets (if missing)
+If `meta_dataset/` is empty or outdated, rebuild using the dataset construction scripts:
+```bash
+poetry run python utils/build_datasets/build_pareto_random_epsilon.py --help
+poetry run python utils/build_datasets/build_pareto_adaptive_epsilon.py --help
+```
+Similar scripts exist for other indicators (ensure the indicator argument matches: `epsilon`, `hipervolume`, `igd`). These scripts read from `meta_feature/` + `Analysis/` and output into `meta_dataset/<indicator>/...`.
+
+If you only received a packaged `meta_dataset/` you can skip rebuilding and go directly to the pipeline.
+
 ## Usage
 
 ### Run the full pipeline (merits, metrics, figures, indices JSON):
