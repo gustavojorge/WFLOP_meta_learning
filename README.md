@@ -47,7 +47,7 @@ curl -sSL https://install.python-poetry.org | python3 -
 
 2. Clone the repository and install dependencies:
 ```bash
-git clone <repository-url>
+git clone https://github.com/gustavojorge/WFLOP_meta_learning
 cd meta_learning
 poetry install
 ```
