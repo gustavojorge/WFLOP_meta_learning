@@ -124,7 +124,8 @@ def models_and_merit_builder(file_path, arquive, label):
         X_test_scaled = scaler.transform(X_test)
 
         #---------- MULTIOUTPUT RANDOM FOREST REGRESSOR ----------        
-        model = MultiOutputRegressor(RandomForestRegressor(n_estimators=1000, max_depth=2, min_samples_split=2, min_samples_leaf=3, random_state=0))  # parâmetros escolhidos anteriormente
+        #model = MultiOutputRegressor(RandomForestRegressor(n_estimators=1000, max_depth=2, min_samples_split=2, min_samples_leaf=3, random_state=0))
+        model = MultiOutputRegressor(RandomForestRegressor(random_state=0))
         model.fit(X_train_scaled, y_train)  # TRAINING
 
         #MEAN OF FEATURE IMPORTANCE OF ALL ESTIMATORS

@@ -1,0 +1,24 @@
+{
+  "dataset": "meta_dataset/igd/pareto_based/random_walk/l10_r1.0.csv",
+  "label": "igd",
+  "l": 10,
+  "r": "1.0",
+  "random_search": {
+    "best_params": {
+      "estimator__max_depth": 2,
+      "estimator__min_samples_leaf": 3,
+      "estimator__min_samples_split": 9,
+      "estimator__n_estimators": 187
+    },
+    "approx_merit": 0.9991345634773725
+  },
+  "grid_search": {
+    "best_params": {
+      "estimator__max_depth": 2,
+      "estimator__min_samples_leaf": 3,
+      "estimator__min_samples_split": 7,
+      "estimator__n_estimators": 184
+    },
+    "approx_merit": 1.0026467142755038
+  }
+}
