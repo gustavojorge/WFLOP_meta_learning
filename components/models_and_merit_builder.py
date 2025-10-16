@@ -7,6 +7,11 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+try:
+    from imblearn.over_sampling import SMOTE, RandomOverSampler  # type: ignore
+except ImportError:
+    SMOTE = None  # type: ignore
+    RandomOverSampler = None  # type: ignore
 
 # Importa indices dinâmicos
 try:
@@ -51,7 +56,7 @@ def models_and_merit_builder(file_path, arquive, label):
     comolsd_instances = df[df.iloc[:, 0].astype(str).isin(comolsd_indices)]
 
     scaler = StandardScaler()
-    n_folds = 100
+    n_folds = 3
     scores = []
 
     # Storing the importance of the features
@@ -89,7 +94,26 @@ def models_and_merit_builder(file_path, arquive, label):
     else:
         raise ValueError("Label desconhecido para tamanhos de teste")
     
+    def _instance_minmax(df_algos: pd.DataFrame) -> pd.DataFrame:
+        """Normalização por instância (linha) min-max para colunas de algoritmos.
+        Cada linha (instância) é escalada para [0,1] de forma que o menor valor vire 0 e o maior 1.
+        Se todos os valores forem iguais, retorna 0 em todas as colunas daquela linha (evita divisão por zero).
+        """
+        # min e max por linha
+        row_min = df_algos.min(axis=1)
+        row_max = df_algos.max(axis=1)
+        span = row_max - row_min
+        # evita divisão por zero substituindo span==0 por 1 (diferença será 0 de qualquer forma)
+        span = span.replace(0, 1)
+        # (valor - min) / (max - min)
+        normalized = (df_algos.sub(row_min, axis=0)).div(span, axis=0)
+        # Para linhas onde havia span original 0 (todos iguais), já resulta em 0
+        return normalized
+
+    print("[InstanceNorm] Aplicando normalização por instância (min-max por linha) nas colunas de algoritmos...")
+
     for fold_number in range(n_folds):
+        print(f"Fold {fold_number + 1}/{n_folds}")
         fold_numbers.append(fold_number)
 
         # Manual stratified selection for nsga and moead
@@ -115,31 +139,96 @@ def models_and_merit_builder(file_path, arquive, label):
         train_data = pd.concat([nsga_train, moead_train, comolsd_train])
         test_data = pd.concat([nsga_test, moead_test, comolsd_test])
 
-        X_train, y_train = train_data.loc[:, feature_cols], train_data.loc[:, algo_cols]
-        X_test, y_test = test_data.loc[:, feature_cols], test_data.loc[:, algo_cols]
-        
+        X_train, y_train_raw = train_data.loc[:, feature_cols], train_data.loc[:, algo_cols]
+        X_test, y_test_raw = test_data.loc[:, feature_cols], test_data.loc[:, algo_cols]
+
+        # ------ SMOTE PARA BALANCEAR INSTÂNCIAS (antes da normalização) ------
+        # Construção de vetor de classes baseado nos índices dinâmicos (qual algoritmo é melhor na instância)
+        train_instance_ids = train_data.iloc[:, 0].astype(str)
+        y_classes = []
+        for inst_id in train_instance_ids:
+            if inst_id in nsga_indices:
+                y_classes.append(0)  # NSGA
+            elif inst_id in moead_indices:
+                y_classes.append(1)  # MOEAD
+            elif inst_id in comolsd_indices:
+                y_classes.append(2)  # COMOLSD
+            else:
+                raise ValueError(f"Instância {inst_id} não encontrada em nenhum conjunto de índices dinâmicos")
+        y_classes = np.array(y_classes)
+
+        # Distribuição original
+        unique, counts = np.unique(y_classes, return_counts=True)
+        dist_original = {['NSGA','MOEAD','COMOLSD'][u]: int(c) for u,c in zip(unique, counts)}
+
+        # Estratégia moderada: elevar classes minoritárias para ~80% da classe majoritária, sem reduzir a majoritária
+        max_count = counts.max()
+        target_minor = int(max_count * 0.8)
+        sampling_strategy = {}
+        for u, c in zip(unique, counts):
+            if c < target_minor:
+                sampling_strategy[u] = target_minor
+            else:
+                sampling_strategy[u] = c  # mantém classe já >= alvo
+
+        # Execução do oversampling
+        if SMOTE is not None and RandomOverSampler is not None:
+            min_count = counts.min()
+            # Se min_count < 3 não é seguro fazer SMOTE (precisa >= k_neighbors+1). Usar RandomOverSampler.
+            if min_count < 3:
+                print("[SMOTE] Poucas instâncias em alguma classe (<3). Usando RandomOverSampler.")
+                ros = RandomOverSampler(sampling_strategy=sampling_strategy, random_state=42)
+                combined = pd.concat([X_train.reset_index(drop=True), y_train_raw.reset_index(drop=True)], axis=1)
+                combined_res, y_classes_res = ros.fit_resample(combined, y_classes)
+            else:
+                k_neighbors = max(1, min(min_count - 1, 5))
+                print(f"[SMOTE] Aplicando SMOTE moderado com k_neighbors={k_neighbors} e sampling_strategy={sampling_strategy}")
+                smote = SMOTE(sampling_strategy=sampling_strategy, k_neighbors=k_neighbors, random_state=42)
+                combined = pd.concat([X_train.reset_index(drop=True), y_train_raw.reset_index(drop=True)], axis=1)
+                combined_res, y_classes_res = smote.fit_resample(combined, y_classes)
+
+            # Separar novamente features e targets após síntese
+            X_train = combined_res.iloc[:, :len(feature_cols)]
+            y_train_raw = combined_res.iloc[:, len(feature_cols):]
+            y_train_raw.columns = algo_cols  # restaura nomes
+
+            # Nova distribuição
+            unique_res, counts_res = np.unique(y_classes_res, return_counts=True)
+            dist_res = {['NSGA','MOEAD','COMOLSD'][u]: int(c) for u,c in zip(unique_res, counts_res)}
+        else:
+            print("[SMOTE] imbalanced-learn não disponível. Prosseguindo sem oversampling.")
+
+        # ------ NORMALIZAÇÃO POR INSTÂNCIA (apenas y) ------
+        y_train = _instance_minmax(y_train_raw)
+        y_test = _instance_minmax(y_test_raw)
+
         #---------- NORMALIZATION OF FEATURES ----------
         scaler.fit(X_train)
         X_train_scaled = scaler.transform(X_train)
         X_test_scaled = scaler.transform(X_test)
 
         #---------- MULTIOUTPUT RANDOM FOREST REGRESSOR ----------        
-        #model = MultiOutputRegressor(RandomForestRegressor(n_estimators=1000, max_depth=2, min_samples_split=2, min_samples_leaf=3, random_state=0))
-        model = MultiOutputRegressor(RandomForestRegressor(random_state=0))
-        model.fit(X_train_scaled, y_train)  # TRAINING
+        model = MultiOutputRegressor(RandomForestRegressor(
+            n_estimators=854,
+            max_depth=2,
+            min_samples_split=5,
+            min_samples_leaf=3,
+            random_state=0
+        ))
+        model.fit(X_train_scaled, y_train)  # TRAINING (com y normalizado por instância)
 
         #MEAN OF FEATURE IMPORTANCE OF ALL ESTIMATORS
         feature_importances += np.mean([est.feature_importances_ for est in model.estimators_], axis=0)
-        
+
         y_pred = pd.DataFrame(model.predict(X_test_scaled), columns=y_train.columns, index=y_test.index) #PREDICTION
-        
-        #---------- METRIC CALCULATION ----------        
-        AS = y_train.columns[np.argmin(y_pred.values, axis=1)]  
-        VBS = y_test.idxmin(axis=1)  
-        SBS = y_train.mean().idxmin()  
+
+        #---------- METRIC CALCULATION ----------
+        AS = y_train.columns[np.argmin(y_pred.values, axis=1)]  # Algoritmo escolhido pelo modelo (menor valor previsto na escala normalizada)
+        VBS = y_test.idxmin(axis=1)  # Best real (menor valor real normalizado por instância)
+        SBS = y_train.mean().idxmin()  # Single best (menor valor médio nas instâncias de treino já normalizadas)
 
         sbs_best_model.append(str(SBS))
-        
+
         rhv_AS = np.array([y_test.loc[y_test.index[i], AS[i]] for i in range(len(X_test))])
         rhv_SBS = np.array([y_test.loc[y_test.index[i], SBS] for i in range(len(X_test))])
         rhv_VBS = np.array([y_test.at[y_test.index[i], VBS.iloc[i]] for i in range(len(X_test))])
@@ -147,23 +236,23 @@ def models_and_merit_builder(file_path, arquive, label):
         as_predictions.append(rhv_AS)
         vbs_predictions.append(rhv_VBS)
         sbs_predictions.append(rhv_SBS)
-        
+
         rhv_AS_mean = rhv_AS.mean()
         rhv_SBS_mean = rhv_SBS.mean()
         rhv_VBS_mean = rhv_VBS.mean()
-        
+
         if rhv_SBS_mean == rhv_VBS_mean:
             raise Exception("rhv_SBS_mean == rhv_VBS_mean")
         else:
             m = (rhv_AS_mean - rhv_VBS_mean) / (rhv_SBS_mean - rhv_VBS_mean)
-        
+
         scores.append(m)
-        
+
         #Finding the best and worst models
         if m < best_score:
             best_score = m
             best_model = model
-        
+
         if m > worst_score:
             worst_score = m
             worst_model = model
@@ -182,7 +271,9 @@ def models_and_merit_builder(file_path, arquive, label):
     print([float(x) for x in scores])
 
     # final_model = Training a model with the whole data
-    X, y = df.loc[:, feature_cols], df.loc[:, algo_cols]
+    X, y_raw_full = df.loc[:, feature_cols], df.loc[:, algo_cols]
+    # Normalização por instância também aplicada para treinamento final
+    y = _instance_minmax(y_raw_full)
     scaler.fit(X)
     X_scaled = scaler.transform(X)
     
