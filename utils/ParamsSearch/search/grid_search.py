@@ -6,16 +6,26 @@ def derive_grid_from_random(best_params: dict) -> dict:
         return vals
 
     grid = {}
+
     if 'estimator__n_estimators' in best_params:
         ne = best_params['estimator__n_estimators']
-        grid['estimator__n_estimators'] = around_int(ne, span=100, lo=50)
+        grid['estimator__n_estimators'] = around_int(ne, span=3, lo=50)
+
     if 'estimator__max_depth' in best_params:
         md = best_params['estimator__max_depth']
-        grid['estimator__max_depth'] = [None, 2, 4, 6, 8] if md is None else around_int(md, span=4, lo=2) + [None]
+        if md is None:
+            grid['estimator__max_depth'] = [None, 2, 4, 6, 10, 15]
+        else:
+            grid['estimator__max_depth'] = around_int(md, span=3, lo=2) + [None]
+
     if 'estimator__min_samples_split' in best_params:
-        grid['estimator__min_samples_split'] = around_int(best_params['estimator__min_samples_split'], span=2, lo=2)
+        mss = best_params['estimator__min_samples_split']
+        grid['estimator__min_samples_split'] = around_int(mss, span=2, lo=2)
+
     if 'estimator__min_samples_leaf' in best_params:
-        grid['estimator__min_samples_leaf'] = around_int(best_params['estimator__min_samples_leaf'], span=2, lo=1)
+        msl = best_params['estimator__min_samples_leaf']
+        grid['estimator__min_samples_leaf'] = around_int(msl, span=2, lo=1)
+
     return grid
 
 

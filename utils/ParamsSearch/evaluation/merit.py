@@ -7,7 +7,8 @@ import importlib.util
 
 # Dynamic load of build_indices_dict.py
 def _load_build_indices():
-    components_path = Path(__file__).parents[2] / 'components' / 'build_indices_dict.py'
+    # Go up from evaluation/ -> ParamsSearch/ -> utils/ -> root/ -> components/
+    components_path = Path(__file__).parents[3] / 'components' / 'build_indices_dict.py'
     spec = importlib.util.spec_from_file_location('build_indices_dict', components_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
