@@ -15,9 +15,28 @@ def run_merit_script(script_path, dataset_path, arquive, label, log_path, python
         end_time = time.time()
         run_time = end_time - start_time
         
-        output_lines = result.stdout.strip().split("\n")
-        metric_value = float(output_lines[0])  
-        merit_list = output_lines[1:]  
+        output_lines = [ln.strip() for ln in result.stdout.strip().split("\n") if ln.strip()]
+        # Estratégia robusta: encontra a primeira linha que converte para float (média) e
+        # depois uma linha com representação de lista [ ... ] para méritos por fold.
+        metric_value = None
+        merit_list = []
+        for ln in output_lines:
+            if metric_value is None:
+                try:
+                    metric_value = float(ln)
+                    continue
+                except ValueError:
+                    # não é valor numérico da média
+                    pass
+            # Detecta lista de méritos
+            if ln.startswith("[") and ln.endswith("]"):
+                # remove colchetes e separa por vírgula
+                inner = ln[1:-1].strip()
+                if inner:
+                    merit_list = [x.strip() for x in inner.split(",")]
+                break
+        if metric_value is None:
+            raise ValueError(f"Não foi possível extrair métrica numérica do stdout. Linhas: {output_lines[:5]}")
         
         log_file_path = os.path.join(log_path, f"{arquive}_log.txt")
         with open(log_file_path, 'w', encoding='utf-8') as log_file:

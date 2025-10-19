@@ -56,7 +56,7 @@ def models_and_merit_builder(file_path, arquive, label):
     comolsd_instances = df[df.iloc[:, 0].astype(str).isin(comolsd_indices)]
 
     scaler = StandardScaler()
-    n_folds = 3
+    n_folds = 100
     scores = []
 
     # Storing the importance of the features
@@ -163,7 +163,7 @@ def models_and_merit_builder(file_path, arquive, label):
 
         # Estratégia moderada: elevar classes minoritárias para ~80% da classe majoritária, sem reduzir a majoritária
         max_count = counts.max()
-        target_minor = int(max_count * 0.8)
+        target_minor = int(max_count * 0.85)
         sampling_strategy = {}
         for u, c in zip(unique, counts):
             if c < target_minor:
