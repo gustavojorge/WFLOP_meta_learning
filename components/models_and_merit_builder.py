@@ -56,7 +56,7 @@ def models_and_merit_builder(file_path, arquive, label):
     comolsd_instances = df[df.iloc[:, 0].astype(str).isin(comolsd_indices)]
 
     scaler = StandardScaler()
-    n_folds = 100
+    n_folds = 5
     scores = []
 
     # Storing the importance of the features
@@ -71,10 +71,13 @@ def models_and_merit_builder(file_path, arquive, label):
     best_score = float('inf')
     worst_score = float('-inf')
 
-    # Storing the all performances of AS, SBS and VBS models
-    as_predictions = []
+    # Storing normalized performances (para cálculo de mérito) e também valores originais (raw) para métricas de regressão
+    as_predictions = []      # normalizados
     vbs_predictions = []
     sbs_predictions = []
+    as_predictions_raw = []  # escala original
+    vbs_predictions_raw = []
+    sbs_predictions_raw = []
 
     # Storing the chosen SBS model in each fold
     sbs_best_model = []
@@ -229,13 +232,22 @@ def models_and_merit_builder(file_path, arquive, label):
 
         sbs_best_model.append(str(SBS))
 
+        # Valores normalizados (usados no mérito)
         rhv_AS = np.array([y_test.loc[y_test.index[i], AS[i]] for i in range(len(X_test))])
         rhv_SBS = np.array([y_test.loc[y_test.index[i], SBS] for i in range(len(X_test))])
         rhv_VBS = np.array([y_test.at[y_test.index[i], VBS.iloc[i]] for i in range(len(X_test))])
 
+        # Valores crus (não normalizados) para métricas de regressão
+        rhv_AS_raw = np.array([y_test_raw.loc[y_test_raw.index[i], AS[i]] for i in range(len(X_test))])
+        rhv_SBS_raw = np.array([y_test_raw.loc[y_test_raw.index[i], SBS] for i in range(len(X_test))])
+        rhv_VBS_raw = np.array([y_test_raw.at[y_test_raw.index[i], VBS.iloc[i]] for i in range(len(X_test))])
+
         as_predictions.append(rhv_AS)
         vbs_predictions.append(rhv_VBS)
         sbs_predictions.append(rhv_SBS)
+        as_predictions_raw.append(rhv_AS_raw)
+        vbs_predictions_raw.append(rhv_VBS_raw)
+        sbs_predictions_raw.append(rhv_SBS_raw)
 
         rhv_AS_mean = rhv_AS.mean()
         rhv_SBS_mean = rhv_SBS.mean()
@@ -292,9 +304,10 @@ def models_and_merit_builder(file_path, arquive, label):
 
     # ---------- Calculates the average performance of AS, VBS and SBS models and store it in "models_merit_path" ----------
     instances = df.iloc[:, 0]
-    as_predictions_mean = np.mean(as_predictions, axis=0)
-    vbs_predictions_mean = np.mean(vbs_predictions, axis=0)
-    sbs_predictions_mean = np.mean(sbs_predictions, axis=0)
+    # Médias em escala original (raw) para uso em regression_metrics
+    as_predictions_mean = np.mean(as_predictions_raw, axis=0)
+    vbs_predictions_mean = np.mean(vbs_predictions_raw, axis=0)
+    sbs_predictions_mean = np.mean(sbs_predictions_raw, axis=0)
     
     as_df = pd.DataFrame({'Instance': instances.iloc[:len(as_predictions_mean)], 'AS_Prediction': as_predictions_mean})
     vbs_df = pd.DataFrame({'Instance': instances.iloc[:len(vbs_predictions_mean)], 'VBS_Prediction': vbs_predictions_mean})
