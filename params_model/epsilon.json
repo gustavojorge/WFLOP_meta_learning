@@ -1,0 +1,14 @@
+{
+  "dataset": "meta_dataset/epsilon/pareto_based/random_walk/l100_r0.05.csv",
+  "label": "epsilon",
+  "l": 100,
+  "r": "0.05",
+  "random_search": {
+    "best_params": {
+      "estimator__max_depth": 20,
+      "estimator__min_samples_leaf": 4,
+      "estimator__min_samples_split": 7,
+      "estimator__n_estimators": 292
+    }
+  }
+}
