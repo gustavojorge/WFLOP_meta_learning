@@ -1,14 +1,14 @@
 {
-  "dataset": "meta_dataset/igd/pareto_based/random_walk/l50_r0.25.csv",
+  "dataset": "meta_dataset/igd/pareto_based/adaptive_walk/r0.05.csv",
   "label": "igd",
-  "l": 50,
-  "r": "0.25",
+  "l": null,
+  "r": "0.05",
   "random_search": {
     "best_params": {
-      "estimator__max_depth": null,
-      "estimator__min_samples_leaf": 1,
-      "estimator__min_samples_split": 4,
-      "estimator__n_estimators": 805
+      "estimator__max_depth": 2,
+      "estimator__min_samples_leaf": 4,
+      "estimator__min_samples_split": 7,
+      "estimator__n_estimators": 854
     }
   }
 }

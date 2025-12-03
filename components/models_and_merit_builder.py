@@ -125,7 +125,7 @@ def models_and_merit_builder(file_path, arquive, label):
 
         unique, counts = np.unique(y_classes, return_counts=True)
         max_count = counts.max()
-        target_minor = int(max_count * 0.85)
+        target_minor = int(max_count * 0.80)
         sampling_strategy = {u: (target_minor if c < target_minor else c) for u, c in zip(unique, counts)}
 
         if SMOTE is not None and RandomOverSampler is not None:
@@ -156,9 +156,11 @@ def models_and_merit_builder(file_path, arquive, label):
         X_test_scaled = scaler.transform(X_test)
 
         model = MultiOutputRegressor(RandomForestRegressor(
-            n_estimators=292, max_depth=20, min_samples_split=7, min_samples_leaf=4,
+            n_estimators=498, max_depth=4, min_samples_split=2, min_samples_leaf=4,
             random_state=0, n_jobs=-1
         ))
+
+        #model = MultiOutputRegressor(RandomForestRegressor(random_state=0, n_jobs=-1))
 
         model.fit(X_train_scaled, y_train)
 
@@ -169,7 +171,7 @@ def models_and_merit_builder(file_path, arquive, label):
         AS = y_train.columns[np.argmin(y_pred.values, axis=1)]
         VBS = y_test.idxmin(axis=1)
 
-        # ✅ SBS from ORIGINAL TRAIN (pre-SMOTE)
+        # SBS from ORIGINAL TRAIN (pre-SMOTE)
         SBS = y_train_original_norm.mean().idxmin()
 
         sbs_best_model.append(str(SBS))

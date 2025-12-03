@@ -11,12 +11,13 @@ from search.grid_search import run_grid_search
 from evaluation.merit import compute_merit_for_model
 from utils.io import ensure_dir, save_json
 
+
 def build_y_classes(df, label):
     """
     Constrói vetor de classes (y_classes) baseado no melhor algoritmo por instância,
     conforme o label (epsilon, hipervolume ou igd).
     """
-    # Import dinâmico dos índices de algoritmos (como no seu pipeline de mérito)
+    # Import dinâmico dos índices de algoritmos (como no pipeline de mérito)
     from components.build_indices_dict import build_all_indices
 
     all_indices = build_all_indices()
@@ -41,10 +42,11 @@ def build_y_classes(df, label):
 
     return pd.Series(y_classes, name="y_classes")
 
+
 def main():
     parser = argparse.ArgumentParser(description='Param search orchestrator (Random -> Grid) minimizing merit m.')
     parser.add_argument('--label', required=True, choices=['epsilon', 'hipervolume', 'igd'])
-    parser.add_argument('--l', required=True, type=int)
+    parser.add_argument('--l', type=int, help='(opcional) Valor de l para random_walk')
     parser.add_argument('--r', required=True, type=str)
     parser.add_argument('--random-iters', type=int, default=20)
     parser.add_argument('--folds-merit', type=int, default=30)
@@ -53,11 +55,16 @@ def main():
     parser.add_argument('--output', type=str, default=None)
     args = parser.parse_args()
 
-    dataset_path = f'meta_dataset/{args.label}/pareto_based/random_walk/l{args.l}_r{args.r}.csv'
+    # Caminho do dataset
+    if args.l is not None:
+        dataset_path = f'meta_dataset/{args.label}/pareto_based/random_walk/l{args.l}_r{args.r}.csv'
+    else:
+        dataset_path = f'meta_dataset/{args.label}/pareto_based/adaptive_walk/r{args.r}.csv'
+
     if not os.path.isfile(dataset_path):
         raise FileNotFoundError(f'Dataset not found: {dataset_path}')
-    df = pd.read_csv(dataset_path)
 
+    df = pd.read_csv(dataset_path)
     algo_cols = df.columns[-3:]
     feature_cols = df.columns[1:-3]
     X, y = df[feature_cols], df[algo_cols]
